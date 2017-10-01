@@ -71,39 +71,44 @@ STATUS_NOT_FOUND = "HTTP/1.0 404 Not Found\n\n"
 STATUS_NOT_IMPLEMENTED = "HTTP/1.0 401 Not Implemented\n\n"
 
 def respond(sock):
-	"""
-	This server responds only to GET requests (not PUT, POST, or UPDATE).
-	"""
-	sent = 0
-	request = sock.recv(1024)  # We accept only short requests
-	request = str(request, encoding='utf-8', errors='strict')
-	log.info("--- Received request ----")
-	log.info("Request was {}\n***\n".format(request))
-
-	parts = request.split()
-	if "//" in parts[1] or ".." in parts[1] or "~" in parts[1]:		
-		log.info("Forbidden request: {}".format(request))
-		transmit(STATUS_FORBIDDEN, sock)
-		transmit("\nThe given request is forbidden: {}\n".format(request), sock)
-	if parts[1][0] == '/':
-		parts[1] = parts[1][1:]
-	source_path = os.path.join(DOCROOT, parts[1])
-	log.debug("Source Path: {}".format(source_path))
-	if "/pages" in source_path and (".html" in source_path or ".css" in source_path):
-		try:
-			with open(source_path, 'r', encoding='utf-8') as source:
-				for line in source:
-					transmit(line.strip(),sock)
-		except OSError as error:
-			transmit(STATUS_NOT_FOUND, sock)
-			transmit("\n404: I don't open files that don't exist: {}\n".format(request), sock)
-	else:
-		log.info("Unhandled request: {}".format(request))
-		transmit(STATUS_NOT_IMPLEMENTED, sock)
-		transmit("\nI don't handle this request: {}\n".format(request), sock)
-	sock.shutdown(socket.SHUT_RDWR)
-	sock.close()
-	return
+    """
+    This server responds only to GET requests (not PUT, POST, or UPDATE).
+    """
+    sent = 0
+    request = sock.recv(1024)  # We accept only short requests
+    request = str(request, encoding='utf-8', errors='strict')
+    log.info("--- Received request ----")
+    log.info("Request was {}\n***\n".format(request))
+    
+    parts = request.split()
+    if "//" in parts[1] or ".." in parts[1] or "~" in parts[1]:		
+        log.info("Forbidden request: {}".format(request))
+        transmit(STATUS_FORBIDDEN, sock)
+        transmit("\nThe given request is forbidden: {}\n".format(request), sock)
+    if not (".css" in parts[1][-4:] or ".html" in parts[1][-5:]):
+        log.info("Forbidden request: {}".format(request))
+        transmit(STATUS_FORBIDDEN, sock)
+        transmit("\nThe given request is forbidden: {}\n".format(request), sock)
+	
+    if parts[1][0] == '/':
+        parts[1] = parts[1][1:]
+        source_path = os.path.join(DOCROOT, parts[1])
+        log.debug("Source Path: {}".format(source_path))
+    if "/pages" in source_path:
+        try:
+            with open(source_path, 'r', encoding='utf-8') as source:
+                for line in source:
+                    transmit(line.strip(),sock)
+        except OSError as error:
+            transmit(STATUS_NOT_FOUND, sock)
+            transmit("\n404: I don't open files that don't exist: {}\n".format(request), sock)
+    else:
+        log.info("Unhandled request: {}".format(request))
+        transmit(STATUS_NOT_IMPLEMENTED, sock)
+        transmit("\nI don't handle this request: {}\n".format(request), sock)
+    sock.shutdown(socket.SHUT_RDWR)
+    sock.close()
+    return
 
 
 def transmit(msg, sock):
